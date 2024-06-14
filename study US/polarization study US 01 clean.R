@@ -12,7 +12,7 @@ library(haven)
 library(stringr)
 
 #---- Load data ----
-data <- read_sav("3.+GRIEG+Polarization+(S1+US)_June+7,+2024_15.46.sav") 
+data <- read_sav("study US/3.+GRIEG+Polarization+(S1+US)_June+7,+2024_15.46.sav") 
 #summary(data) 
 nrow(data) 
 glimpse(data) #is like a transposed version of print()
@@ -188,7 +188,6 @@ data <- data %>% mutate(across(c(abort.norm,
                                  animal.norm),
                                .fns = ~ 8 - (.),
                                .names = "{.col}_r"))
-# TO DO: add Israel (recode?)
 
 #------ reverse-score responses for perceived distribution ----
 # reverse score items for perceptions 

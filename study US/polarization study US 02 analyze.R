@@ -17,9 +17,9 @@ options(scipen = 999) # non-scientific notation
 
 #---- Load data ----
 # use code 01 or load csv
-#data <- read.csv2("polarization study US clean data.csv")
-#data.long <- read.csv2("polarization study US long data.csv")
-#issue.means <- read.csv2("polarization study US issue means.csv")
+#data <- read.csv2("study US/polarization study US clean data.csv")
+#data.long <- read.csv2("study US/polarization study US long data.csv")
+#issue.means <- read.csv2("study US/polarization study US issue means.csv")
 
 #---- Plots ----
 #---- plot histograms
@@ -139,7 +139,7 @@ plot.sd
 
 
 #---------------------------------------------------------------------------------------------------------------------
-#---- Vizualizations of distributions ----
+#---- Visualizations of distributions ----
 #data.long <- data.long %>% filter(complete.cases(.)) # already filtered in 01 code
 
 data.long <- data.long %>% 
@@ -147,14 +147,14 @@ data.long <- data.long %>%
          pos345 = case_when((pos >= 3 & pos <= 5) ~ 1, TRUE ~ 0),
          pos67 = case_when(pos >= 6 ~ 1, TRUE ~ 0))
 
-x <- data.long %>%
+pos <- data.long %>%
   group_by(issue) %>%
   summarize(pos.left = mean(pos12) * 100,
             pos.med = mean(pos345) * 100,
             pos.right = mean(pos67) * 100) #%>%
 #mutate(sum = pos12 + pos345 + pos67)
 
-y <- data.long %>%
+perc <- data.long %>%
   group_by(issue) %>%
   summarize(perc.left = mean(perc12),
             perc.med = mean(perc345),
@@ -162,34 +162,55 @@ y <- data.long %>%
 #mutate(sum = perc12 + perc345 + perc67)
 
 # merge actual with perceived variables and restructure
-distrib <- x %>% 
-  left_join(y, by = "issue") %>%
+distrib <- pos %>% 
+  left_join(perc, by = "issue") %>%
   gather("var", "value", -issue) %>%
   separate(var, into = c("var", "level")) %>%
   mutate(#level = factor(level, levels = c("low", "med", "high")),
     level = factor(level, levels = c("left", "med", "right")),
-         var = factor(var, levels = c("pos", "perc")))
+    var = factor(var, levels = c("pos", "perc")))
 
-# plot
+# reorder issue (order as in perceived/actual polarization)
+distrib <- distrib %>% left_join(issue.means %>% select(issue, pos.m, pos.sd, polar.m)) %>%
+  #mutate(issue =  reorder(issue, -polar.m)) # highest perceived polarization
+  #mutate(issue =  reorder(issue, -pos.sd)) # highest actual polarization
+  mutate(issue =  reorder(issue, -pos.m)) # most left/right wing
+
+# plot actual and perceived positions
 distrib %>% #filter(issue == "abort" | issue == "gay" | issue == "relig" | 
             #   issue == "gender") %>% 
   ggplot(aes(level, value, fill = var)) +
-  geom_bar(stat = "identity", position = "dodge") + 
+  geom_bar(stat = "identity", position = "dodge", alpha = 0.60) + 
   facet_wrap(~issue) +
-  scale_fill_manual(values = c("pink3", "purple4")) +
+  scale_fill_manual(values = c("red", "blue")) +
   labs(title = "Actual and perceived distributions",
+       subtitle = "From highest to lowest (perceived) polarization",
        x = "Level", y = "Percentage of population", fill = " ") +
   theme_classic()
 
-# add and plot differences (do people over or underestimate)
+# same plot but with overlayed bars
+distrib %>% #filter(issue == "abort" | issue == "gay" | issue == "relig" | 
+  #   issue == "gender") %>% 
+  ggplot(aes(level, value, fill = var)) +
+  geom_bar(stat = "identity", position = "identity", alpha = 0.50) + 
+  facet_wrap(~issue) +
+  scale_fill_manual(values=c("red", "blue")) +
+  labs(title = "Actual and perceived distributions",
+       subtitle = "From highest to lowest (perceived) polarization",
+       x = "Level", y = "Percentage of population", fill = "") +
+  theme_classic()
+
+# add and plot differences (do people over- or underestimate)
 distrib %>% spread(var, value) %>%
-  mutate(diff = pos - perc) %>% 
+  mutate(diff = perc - pos) %>% 
+  #mutate(issue =  reorder(issue, -diff)) %>% # reorder using  difference socres
   select(issue, level, diff) %>%
   ggplot(aes(level, diff, fill = level)) +
-  geom_bar(stat = "identity", position = "dodge") + 
+  geom_bar(stat = "identity", position = "dodge", alpha = 0.60) + 
   facet_wrap(~issue) +
-  scale_fill_manual(values = c("red3", "green4", "blue3")) +
-  labs(title = "Difference between actual and perceived distributions",
+  scale_fill_manual(values = c("red", "green4", "blue")) +
+  labs(title = "Difference between perceived and actual distributions",
+       subtitle = "Positive scores = overestimate, negative scores = undereastimate",
        x = "Level", y = "Percentage of population", fill = " ") +
   theme_classic()
 
