@@ -17,11 +17,11 @@ options(scipen = 999) # non-scientific notation
 
 #---- Load data ----
 # use code 01 or load csv
-#data <- read.csv2("study US/polarization study US clean data.csv")
-#data.long <- read.csv2("study US/polarization study US long data.csv")
-#issue.means <- read.csv2("study US/polarization study US issue means.csv")
+data <- read.csv2("study US/polarization study US clean data.csv")
+data.long <- read.csv2("study US/polarization study US long data.csv")
+issue.means <- read.csv2("study US/polarization study US issue means.csv")
 
-#---- Plots ----
+#---- Plots histograms and means ----
 #---- plot histograms
 # positions
 data.long %>% 
@@ -139,7 +139,7 @@ plot.sd
 
 
 #---------------------------------------------------------------------------------------------------------------------
-#---- Visualizations of distributions ----
+#---- Plot distributions ----
 #data.long <- data.long %>% filter(complete.cases(.)) # already filtered in 01 code
 
 data.long <- data.long %>% 
@@ -149,16 +149,16 @@ data.long <- data.long %>%
 
 pos <- data.long %>%
   group_by(issue) %>%
-  summarize(pos.left = mean(pos12) * 100,
-            pos.med = mean(pos345) * 100,
-            pos.right = mean(pos67) * 100) #%>%
+  summarize(pos.left = mean(pos12),
+            pos.med = mean(pos345),
+            pos.right = mean(pos67)) #%>%
 #mutate(sum = pos12 + pos345 + pos67)
 
 perc <- data.long %>%
   group_by(issue) %>%
-  summarize(perc.left = mean(perc12),
-            perc.med = mean(perc345),
-            perc.right = mean(perc67)) #%>%
+  summarize(perc.left = mean(perc12)/100,
+            perc.med = mean(perc345)/100,
+            perc.right = mean(perc67)/100) #%>%
 #mutate(sum = perc12 + perc345 + perc67)
 
 # merge actual with perceived variables and restructure
@@ -184,7 +184,7 @@ distrib %>% #filter(issue == "abort" | issue == "gay" | issue == "relig" |
   facet_wrap(~issue) +
   scale_fill_manual(values = c("red", "blue")) +
   labs(title = "Actual and perceived distributions",
-       subtitle = "From highest to lowest (perceived) polarization",
+       subtitle = "From most left- to righ-wing average position",
        x = "Level", y = "Percentage of population", fill = " ") +
   theme_classic()
 
@@ -196,7 +196,7 @@ distrib %>% #filter(issue == "abort" | issue == "gay" | issue == "relig" |
   facet_wrap(~issue) +
   scale_fill_manual(values=c("red", "blue")) +
   labs(title = "Actual and perceived distributions",
-       subtitle = "From highest to lowest (perceived) polarization",
+       subtitle = "From most left- to righ-wing average position",
        x = "Level", y = "Percentage of population", fill = "") +
   theme_classic()
 
@@ -216,7 +216,7 @@ distrib %>% spread(var, value) %>%
 
 #---------------------------------------------------------------------------------------------------------------------
 #---- Models ----
-#---- Q1: How accurate are meta-perceptions? ----
+#---- Q1: How accurate are meta-perceptions (of average)? ----
 # Q1. How accurate are the perceptions of average societal position (meta-perceptions) within and across multiple political issues? 
 
 # add info on how many times someone picked rep 4
@@ -234,7 +234,7 @@ VarCorr(m0.norm) %>% # get variance components (these are SDs)
   as_tibble() %>%
   mutate(icc=vcov/sum(vcov)) %>%
   dplyr::select(grp, icc)
-# subj 4%, issue 20%
+# subj 4%, issue 14%
 
 # non-centerd DVs, issue mean as predictor
 m1.norm <- lmer(data = data.long, norm ~ 1 + pos.m +
@@ -262,7 +262,7 @@ d.m2.norm <- d.m2.norm %>%
          conf.high.f = fixef(m2.norm)[[1]] + conf.high) %>%
   mutate(negative = case_when(conf.high.f < 0 ~ "negative", 
                               conf.low.f > 0 ~ "positive",
-                              TRUE ~ "ns")) #%>% # assing 0 when upper CI is below 
+                              TRUE ~ "ns")) #%>% # assign 0 when upper CI is below 
 d.m2.norm %>% 
   ggplot(aes(x = reorder(term, estimate.f), y = estimate.f, col = negative)) +
   geom_point(show.legend = FALSE) + 
@@ -271,7 +271,7 @@ d.m2.norm %>%
   labs(title = "Bias in meta-perception",
        x = "Issue",
        y = "Bias") + 
-  scale_color_manual(values=c("blue", "grey60", "red")) +
+  scale_color_manual(values=c("red", "grey60", "blue")) +
   #scale_x_discrete(label = function(x) substr(x, start = 6, stop = 20)) + #length(x))) +# update 24-10-2023 for showing only country names
   coord_flip() +
   theme_classic(base_size = 14) #+ 
@@ -333,7 +333,7 @@ summary(m1.polar)
 
 tab_model(m0.polar, m1.polar)
 
-#---- Q3. What is the relationship between perceived polarization and perceived distribution of opinions? ----
+#---- Q3: What is the relationship between perceived polarization and perceived distribution of opinions? ----
 # Under what distribution people believe an issue is polarized?
 
 # null model
@@ -364,5 +364,9 @@ summary(m2.perc)
 
 tab_model(m0.perc, m1.perc, m1a.perc, m2.perc)
 
-#---- Analysis as in NHB paper ----
+#---- Q4: What is the distance between actual and perceived distributions? ----
+# not pre-registered for Poland at all; for the US and Brazil only mention that we will compare these distributions
+# but no details on how we are going to do so
+
+
 

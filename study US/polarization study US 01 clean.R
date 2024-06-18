@@ -565,3 +565,57 @@ data.long %>% group_by(issue) %>%
 write.csv2(data.long, "polarization study US long data.csv", row.names = FALSE)
 #write.csv(data.long, "polarization study US long data.csv", row.names = FALSE)
 write.csv2(issue.means, "polarization study US issue means.csv", row.names = FALSE)
+
+#---- Calculate and save scores of distrance between actual and perceived distributions ----
+# EMD = Earth Mover's Distance
+
+# select only variables with perceived distributions
+data.long.distr <- data.long %>% 
+  dplyr::select(issue, subj.id, perc12, perc345, perc67) %>%
+  mutate(perc12 = perc12/100,
+         perc345 = perc345/100,
+         perc67 = perc67/100) %>%
+  rename(perc.left = perc12, perc.med = perc345, perc.right = perc67)
+
+# calculate actual distributions
+data.long <- data.long %>% 
+  mutate(pos12 = case_when(pos <= 2 ~ 1, TRUE ~ 0),
+         pos345 = case_when((pos >= 3 & pos <= 5) ~ 1, TRUE ~ 0),
+         pos67 = case_when(pos >= 6 ~ 1, TRUE ~ 0))
+
+pos <- data.long %>%
+  group_by(issue) %>%
+  summarize(pos.left = mean(pos12),
+            pos.med = mean(pos345),
+            pos.right = mean(pos67)) #%>%
+
+# constants
+location = cbind(c(-0.5,0,0.5)) # (scale: -0.5 left, 0 middle, 0.5 right)
+#location = cbind(c(1.5, 4, 6.5)) # (scale: 1.5 left, 4 middle, 6.5 right)
+subj.ids <- unique(data.long.distr$subj.id)
+issues <- unique(data.long.distr$issue)
+
+# calcualte and save emd (per issue and subject)
+emd.data <- data.frame()
+for (i in issues) {
+  print(i)
+  true.distr <- subset(pos, issue == i) %>% dplyr::select(-1) %>% t() # select row and transpose to column vector
+  true.distr <- cbind(true.distr, location) # add location column
+  #print(true.distr)
+  for (j in subj.ids) {
+    #print(j) 
+    perc.distr <- subset(data.long.distr, (issue == i & subj.id == j)) %>% dplyr::select(-1,-2) %>% t()
+    if (ncol(perc.distr) != 0) { # calculates emd only for observations with non-missing responses
+      perc.distr <- cbind(perc.distr, location)
+      #print(perc.distr)
+      emd.val <- emd(true.distr, perc.distr)
+      row <- cbind(i,j, emd.val)
+      emd.data <- rbind(emd.data, row)
+    }
+  }
+}
+#emd.data.copy <- emd.data # security copy
+
+names(emd.data) <- c("issue", "subj.id", "emd")
+emd.data <- emd.data %>% mutate(emd = as.numeric(emd))
+write.csv(emd.data, "study US/polarization study US emd.csv")
